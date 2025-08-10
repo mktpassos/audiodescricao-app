@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "App Audiodescrição",
+    "slug": "audiodescricao-app",
+    "platforms": ["web"],
+    "web": { "bundler": "metro" }
+  }
+}
