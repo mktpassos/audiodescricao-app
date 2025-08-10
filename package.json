@@ -1,16 +1,23 @@
 {
-  "name": "meu-backend",
+  "name": "audiodescricao-app",
   "version": "1.0.0",
+  "private": true,
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "expo start",
+    "web": "expo start --web",
+    "export:web": "expo export -p web --output-dir dist"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "dotenv": "^17.0.0",
-    "express": "^5.1.0"
+    "expo": "^53.0.20",
+    "@expo/metro-runtime": "^5.0.4",
+    "react": "18.2.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.76.3",
+    "react-native-web": "0.20.0",
+    "expo-status-bar": "*",
+    "expo-image-picker": "*",
+    "expo-speech": "*",
+    "expo-av": "*"
   }
 }
