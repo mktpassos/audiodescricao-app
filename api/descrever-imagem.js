@@ -1,64 +1,52 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'Use POST' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Use POST' });
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const imageUrl = body?.imageUrl;
+    const raw = req.body;
+    const body = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+    const { imageUrl, imageBase64, mimeType } = body;
 
-    if (!imageUrl) {
-      return res.status(400).json({ ok: false, error: 'Parâmetro "imageUrl" é obrigatório.' });
+    let mime = mimeType || 'image/jpeg';
+    let base64;
+
+    if (imageUrl) {
+      const r = await fetch(imageUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!r.ok) return res.status(400).json({ ok: false, error: `Falha ao baixar a imagem (${r.status})` });
+      mime = r.headers.get('content-type') || mime;
+      base64 = Buffer.from(await r.arrayBuffer()).toString('base64');
+    } else if (imageBase64 && mimeType) {
+      base64 = imageBase64.includes(',') ? imageBase64.split(',').pop() : imageBase64;
+      mime = mimeType;
+    } else {
+      return res.status(400).json({ ok: false, error: 'Envie imageUrl OU imageBase64 + mimeType.' });
     }
 
-    // sua chave no Vercel (Settings → Environment Variables)
     const apiKey = process.env.GEMINI_API_KEY || process.env.REACT_APP_GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ ok: false, error: 'GEMINI_API_KEY não está configurada.' });
-    }
+    if (!apiKey) return res.status(500).json({ ok: false, error: 'GEMINI_API_KEY não configurada.' });
 
-    // 1) Baixar a imagem
-    const imgResp = await fetch(imageUrl);
-    if (!imgResp.ok) {
-      throw new Error(`Falha ao baixar a imagem: ${imgResp.status} ${imgResp.statusText}`);
-    }
-    const mime = imgResp.headers.get('content-type') || 'image/jpeg';
-    const arrayBuffer = await imgResp.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-
-    // 2) Chamar o Gemini 1.5 Flash (REST)
     const payload = {
       contents: [
         {
           role: 'user',
           parts: [
-            { text: 'Descreva esta imagem de forma breve, clara e em português.' },
+            { text: 'Faça uma audiodescrição em PT-BR, objetiva (2–4 frases), inclusiva e sem suposições.' },
             { inline_data: { mime_type: mime, data: base64 } }
           ]
         }
       ]
     };
 
-    const gemUrl =
-      `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await resp.json();
 
-    const gemResp = await fetch(gemUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await gemResp.json();
-    if (!gemResp.ok) {
-      throw new Error(data?.error?.message || 'Erro na API do Gemini');
+    if (!resp.ok) {
+      return res.status(500).json({ ok: false, error: data?.error?.message || 'Erro na API do Gemini' });
     }
 
-    const text =
-      data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '(sem conteúdo)';
-
-    return res.status(200).json({ ok: true, description: text });
-  } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
+    const text = (data?.candidates?.[0]?.content?.parts || []).map(p => p.text).join('').trim();
+    return res.status(200).json({ ok: true, description: text || '(sem conteúdo)' });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message || 'Erro inesperado' });
   }
 }
