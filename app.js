@@ -1,47 +1,70 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, TextInput, Button, ActivityIndicator } from 'react-native';
 
 export default function App() {
-  const [result, setResult] = useState(null);
+  const [imageUrl, setImageUrl] = useState(
+    'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d'
+  );
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
-  const callApi = async () => {
+  async function handleDescribe() {
     setLoading(true);
+    setError(null);
+    setResult(null);
     try {
-      // caminho relativo = mesmo domínio do seu site -> sem CORS
-      const res = await fetch('/api/ping');
+      const res = await fetch('/api/descrever-imagem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro ${res.status}: ${res.statusText}`);
+      }
+
       const data = await res.json();
-      setResult(JSON.stringify(data, null, 2));
+      setResult(data);
     } catch (err) {
-      setResult(`Erro: ${err.message}`);
+      setError(String(err));
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
-      <Text style={{ marginBottom: 16 }}>App Audiodescrição — Web</Text>
+    <View style={{ flex: 1, gap: 16, paddingTop: 60, alignItems: 'center' }}>
+      <Text style={{ fontSize: 22, marginBottom: 8 }}>App Audiodescrição — Web</Text>
 
-      <Pressable
-        onPress={callApi}
+      <TextInput
+        value={imageUrl}
+        onChangeText={setImageUrl}
+        placeholder="URL da imagem"
         style={{
-          backgroundColor: '#111827',
-          paddingHorizontal: 16,
-          paddingVertical: 10,
+          width: '80%',
+          maxWidth: 720,
+          borderWidth: 1,
+          borderColor: '#ccc',
+          padding: 12,
           borderRadius: 8,
-          marginBottom: 16,
         }}
-      >
-        <Text style={{ color: 'white' }}>
-          {loading ? 'Chamando API…' : 'Chamar /api/ping'}
+      />
+
+      <Button title="Descrever imagem" onPress={handleDescribe} />
+      {loading && <ActivityIndicator style={{ marginTop: 16 }} />}
+
+      {error && (
+        <Text style={{ marginTop: 16, color: 'red' }}>
+          {error}
         </Text>
-      </Pressable>
+      )}
 
       {result && (
-        <Text style={{ fontFamily: 'monospace', textAlign: 'center' }}>
-          {result}
-        </Text>
+        <View style={{ marginTop: 16, width: '80%', maxWidth: 720 }}>
+          <Text style={{ fontWeight: 'bold' }}>Resposta:</Text>
+          <Text>{JSON.stringify(result, null, 2)}</Text>
+        </View>
       )}
     </View>
   );
