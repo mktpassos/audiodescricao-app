@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, ActivityIndicator } from 'react-native';
 
+// URL ABSOLUTA do backend (Vercel)
+// Se você mudar o domínio do projeto, atualize esta constante.
+const API_URL = 'https://audiodescricao-app.vercel.app/api/descrever-imagem';
+
 export default function App() {
   const [imageUrl, setImageUrl] = useState(
     'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d'
@@ -14,7 +18,7 @@ export default function App() {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch('/api/descrever-imagem', {
+      const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl }),
