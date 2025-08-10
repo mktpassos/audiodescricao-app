@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, ActivityIndicator } from 'react-native';
 
-// URL ABSOLUTA do backend (Vercel)
-// Se você mudar o domínio do projeto, atualize esta constante.
-const API_URL = 'https://audiodescricao-app.vercel.app/api/descrever-imagem';
+// 🔗 Endereço do backend (preferência: variável de ambiente do Expo)
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  'https://audiodescricao-app.vercel.app/api/descrever-imagem';
 
 export default function App() {
   const [imageUrl, setImageUrl] = useState(
@@ -17,20 +18,34 @@ export default function App() {
     setLoading(true);
     setError(null);
     setResult(null);
+
     try {
+      console.log('[APP DEBUG] Enviando para:', API_URL);
+
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl }),
       });
 
+      // Resposta pode ser JSON ou texto (ex.: erro de proxy/ngrok)
+      const contentType = res.headers.get('content-type') || '';
+      const payload = contentType.includes('application/json')
+        ? await res.json()
+        : await res.text();
+
       if (!res.ok) {
-        throw new Error(`Erro ${res.status}: ${res.statusText}`);
+        const msg =
+          typeof payload === 'string'
+            ? payload
+            : JSON.stringify(payload, null, 2);
+        throw new Error(`HTTP ${res.status}: ${msg}`);
       }
 
-      const data = await res.json();
-      setResult(data);
+      console.log('[APP DEBUG] Resposta do Backend:', payload);
+      setResult(payload);
     } catch (err) {
+      console.error('[APP ERROR]', err);
       setError(String(err));
     } finally {
       setLoading(false);
@@ -39,7 +54,9 @@ export default function App() {
 
   return (
     <View style={{ flex: 1, gap: 16, paddingTop: 60, alignItems: 'center' }}>
-      <Text style={{ fontSize: 22, marginBottom: 8 }}>App Audiodescrição — Web</Text>
+      <Text style={{ fontSize: 22, marginBottom: 8 }}>
+        App Audiodescrição — Web/Mobile
+      </Text>
 
       <TextInput
         value={imageUrl}
@@ -59,9 +76,7 @@ export default function App() {
       {loading && <ActivityIndicator style={{ marginTop: 16 }} />}
 
       {error && (
-        <Text style={{ marginTop: 16, color: 'red' }}>
-          {error}
-        </Text>
+        <Text style={{ marginTop: 16, color: 'red' }}>{error}</Text>
       )}
 
       {result && (
