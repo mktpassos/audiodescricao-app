@@ -1,20 +1,21 @@
 // api/descrever-imagem.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Aumenta o limite do body para imagens em base64
+// Aumenta o limite do body para imagens em base64 (importante)
 export const config = {
   api: {
     bodyParser: { sizeLimit: "10mb" },
   },
 };
 
-// -- Utilidades --------------------------------------------------------------
-
+// -----------------------------------------------------------------------------
+// Utilidades
 function setCORS(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
 }
 
 // Remove prefixo "data:image/*;base64," se vier
@@ -40,7 +41,7 @@ function extractPayload(body = {}) {
     body.contentType ||
     "image/jpeg";
 
-  const language = body.language || body.lang || "pt-BR"; // pt-BR por padrão
+  const language = body.language || body.lang || "pt-BR"; // padrão
   const mode = body.mode || "standard"; // "short" | "standard" | "long"
 
   return {
@@ -52,14 +53,13 @@ function extractPayload(body = {}) {
   };
 }
 
-// Prompt otimizado para leitores de tela
+// Prompt otimizado para leitores de tela (TTS)
 function buildPrompt({ language = "pt-BR", mode = "standard" }) {
   const lengthHint =
     mode === "short" ? "Escreva 1 a 2 frases curtas." :
     mode === "long"  ? "Escreva 4 a 6 frases, ainda curtas." :
                        "Escreva 2 a 4 frases curtas.";
 
-  // Diretrizes para TTS: frases simples, sem jargões, sem “a imagem mostra…”
   return `
 Você é um sistema de audiodescrição para pessoas cegas.
 Responda em ${language}.
@@ -76,8 +76,7 @@ Instruções de estilo:
 Agora gere a audiodescrição.
 `.trim();
 }
-
-// -- Handler -----------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 export default async function handler(req, res) {
   setCORS(res);
@@ -99,11 +98,11 @@ export default async function handler(req, res) {
     if (!imagemEmBase64 && !imageUrl) {
       return res.status(400).json({
         ok: false,
-        error: { code: "400", message: "Envie 'imagemEmBase64' (ou 'imageBase64') OU 'imageUrl'." },
+        error: { code: "400", message: "Envie 'imageBase64' (ou 'imagemEmBase64') OU 'imageUrl'." },
       });
     }
 
-    // Chave do Gemini (usa qualquer uma das variáveis comuns)
+    // Chave do Gemini (qualquer uma destas funciona)
     const apiKey =
       process.env.REACT_APP_GEMINI_API_KEY ||
       process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
@@ -169,9 +168,7 @@ export default async function handler(req, res) {
       ok: false,
       error: {
         code: "500",
-        message:
-          err?.message ||
-          "Erro no servidor ao gerar a audiodescrição.",
+        message: err?.message || "Erro no servidor ao gerar a audiodescrição.",
       },
     });
   }
