@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, ActivityIndicator } from 'react-native';
 
-// 🔗 Endereço do backend (preferência: variável de ambiente do Expo)
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ??
-  'https://audiodescricao-app.vercel.app/api/descrever-imagem';
+// 🔗 URL BASE do backend (sem o /api/descrever-imagem)
+// Se existir EXPO_PUBLIC_API_URL no .env, use-a; senão, usa o domínio do Vercel.
+// Ex.: EXPO_PUBLIC_API_URL=https://audiodescricao-app.vercel.app
+const API_BASE = (process.env.EXPO_PUBLIC_API_URL || 'https://audiodescricao-app.vercel.app')
+  .replace(/\/$/, ''); // remove barra final se houver
+
+const ENDPOINT = `${API_BASE}/api/descrever-imagem`;
 
 export default function App() {
   const [imageUrl, setImageUrl] = useState(
@@ -20,25 +23,28 @@ export default function App() {
     setResult(null);
 
     try {
-      console.log('[APP DEBUG] Enviando para:', API_URL);
+      console.log('[APP DEBUG] POST para:', ENDPOINT);
 
-      const res = await fetch(API_URL, {
+      const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // o backend aceita { imageUrl } ou { imagemEmBase64 }
         body: JSON.stringify({ imageUrl }),
       });
 
-      // Resposta pode ser JSON ou texto (ex.: erro de proxy/ngrok)
-      const contentType = res.headers.get('content-type') || '';
-      const payload = contentType.includes('application/json')
-        ? await res.json()
-        : await res.text();
+      const raw = await res.text();
+      console.log('[RAW]', raw);
+
+      let payload;
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        // às vezes, em erro de proxy, vem texto puro
+        payload = raw;
+      }
 
       if (!res.ok) {
-        const msg =
-          typeof payload === 'string'
-            ? payload
-            : JSON.stringify(payload, null, 2);
+        const msg = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
         throw new Error(`HTTP ${res.status}: ${msg}`);
       }
 
@@ -46,7 +52,7 @@ export default function App() {
       setResult(payload);
     } catch (err) {
       console.error('[APP ERROR]', err);
-      setError(String(err));
+      setError(String(err?.message || err));
     } finally {
       setLoading(false);
     }
